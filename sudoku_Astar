@@ -1,0 +1,237 @@
+import io
+import operator
+import math
+import random
+from collections import deque
+
+#Regard every element as node
+class Node:
+    value = ''
+    f= 0
+    guess = []
+    x=0
+    y=0
+    def __init__(self, value):
+        self.value = value
+    def set_f(self, f):
+        self.f = f 
+    def set_index(self, x, y):
+        self.x = x
+        self.y = y
+    def set_guess(self,guess):
+        self.guess = guess   
+                                               
+#Read txt file into program
+def getSudoku(file):
+    
+    size_of_sudoku = 0
+    with io.open(file.format(file),'r', encoding='utf-8') as f: 
+          lines = f.readlines() 
+    sudoku_list = list()
+    for l in lines:
+        sudoku_list.append((l.strip().split(",")))
+        size_of_sudoku  += 1
+    #Convert every element into string  
+    
+    node_sudoku = list() 
+    for i in range(size_of_sudoku):
+        nodelist = []
+        for j in range(size_of_sudoku):    
+            nodelist.append(Node(str(sudoku_list[i][j])))
+        node_sudoku.append(nodelist)    
+    return node_sudoku, size_of_sudoku
+   
+sudoku, size = getSudoku('C:/Users/Bo/Desktop/input.txt') 
+
+#define all the numbers cban be generated
+total_list = []
+for index in range(size):
+    total_list.append(str(index+1))
+  
+    
+def conflict_exist(sudoku_param, i_row, j_col):
+    exist = False
+    square_len = int(math.sqrt(size))
+    if((0<=i_row < size) and (0<=j_col < size)):
+        #verify specific row
+        for j in range(size):
+            if(j!=j_col):
+                if(sudoku_param[i_row][j_col].value == sudoku_param[i_row][j].value):
+                    exist = True
+                    break
+        
+        #verify specific column
+        for i in range(size):
+            if(i!=i_row):
+                if(sudoku_param[i_row][j_col].value == sudoku_param[i][j_col].value):
+                    exist = True
+                    break
+        #verify specific square
+        start_i = i_row-(i_row%square_len)
+        start_j = j_col-(j_col%square_len)
+        for i in range(start_i, square_len):
+            for j in range(start_j, square_len):
+                if(i!=i_row and j!=j_col):
+                    if(sudoku_param[i][j].value == sudoku_param[i_row][j_col].value):
+                        exist = True
+                        break
+        return exist     
+    else:
+        print 'row and col, either of them is out of bound'
+
+#Compute f(n)=g(n)+h(n)
+def get_f(sudoku_param, i_row, j_col):
+    square_len = int(math.sqrt(size))
+    #Compute g(n), which is how many blanks constraining to sudoku_param(i_row, j_col)
+    blanks = 0
+    
+    kicked_out_list = []
+    #Compute row blanks and existing numbers
+    for j in range(size):
+        if(j!=j_col):
+            if(sudoku_param[i_row][j].value == '?'):
+                blanks += 1
+            if(sudoku_param[i_row][j].value != '?'):
+                kicked_out_list.append(sudoku_param[i_row][j].value)
+                
+    #Compute column blanks and existing numbers
+    for i in range(size):
+        if(i!=i_row):
+            if(sudoku_param[i][j_col].value == '?'):
+                blanks += 1
+            if(sudoku_param[i][j_col].value != '?'):
+                kicked_out_list.append(sudoku_param[i][j_col].value) 
+    
+    #Compute square blanks and existing numbers
+    start_i = i_row-(i_row%square_len)
+    start_j = j_col-(j_col%square_len)
+    
+
+    for i in range(start_i, start_i + square_len):
+        for j in range(start_j, start_j + square_len):            
+            #if(i!=i_row or j!=j_col):
+            if(sudoku_param[i][j].value == '?'):
+                blanks += 1
+            if(sudoku_param[i][j].value != '?'):
+                kicked_out_list.append(sudoku_param[i][j].value)
+    
+    #Compute h(n)
+    
+    potential_guess_list = list(set(total_list)-set(kicked_out_list))
+    potential_guess = len(potential_guess_list)
+                     
+    return (blanks + potential_guess), potential_guess_list
+    
+    
+def recur_solution(sudoku_param, openl, closedl):
+    while openl:		
+        #No potential value can be filled in for the first element of the open_list
+        if not openl[0].guess:
+			
+            #Change the value of the first element of closedl 
+            while closedl:              
+                if not closedl[-1].guess:
+                    pop_item = closedl.pop()
+                    pop_item.value = '?'
+                    sudoku_param[pop_item.x][pop_item.y].value = '?'
+                    openl.append(pop_item)
+                else:
+                    break
+            #if there is still elements in the closedl
+            if closedl:
+                sudoku_param[closedl[-1].x][closedl[-1].y].value = random.choice(sudoku_param[closedl[-1].x][closedl[-1].y].guess)
+                sudoku_param[closedl[-1].x][closedl[-1].y].set_guess(list(set(sudoku_param[closedl[-1].x][closedl[-1].y].guess)- set(sudoku_param[closedl[-1].x][closedl[-1].y].value)))
+                #Recompute the f, potential guess in the openlist
+                for index in range(len(openl)):
+                    fprime1, guessprime1 = get_f(sudoku_param, openl[index].x, openl[index].y)
+                    openl[index].set_f(fprime1)
+                    openl[index].set_guess(guessprime1)
+                sorted(openl, key=operator.attrgetter('f'))         
+              
+                #Recursively run the program        
+                recur_solution(sudoku_param, openl, closedl)
+            else:
+                print 'The sudoku cannot be solved!!!'
+                break  
+        else:
+            #Potential guess exists
+            temp = []                  
+            sudoku_param[openl[0].x][openl[0].y].value = random.choice(sudoku_param[openl[0].x][openl[0].y].guess)
+            temp = [sudoku_param[openl[0].x][openl[0].y].value]
+            sudoku_param[openl[0].x][openl[0].y].set_guess(list(set(sudoku_param[openl[0].x][openl[0].y].guess)-set(temp)))
+            #Put into closedl
+            closedl.append(openl.popleft())
+             
+            #Recompute the f, potential guess in the openlist
+            for index in range(len(openl)):
+                fprime, guessprime = get_f(sudoku_param, openl[index].x, openl[index].y)
+                openl[index].set_f(fprime)
+                openl[index].set_guess(guessprime)
+			 
+            sorted(openl, key=operator.attrgetter('f'))
+             
+    if not openl:
+        return sudoku_param
+        
+
+        
+def Astar_search(sudoku_param):
+    open_queue = deque()
+    closed_list = []
+    for i in range(size):
+        for j in range(size):
+            #Whether this blank should be filled
+            if(sudoku_param[i][j].value == '?'):
+                f, potential_guess = get_f(sudoku_param, i, j)              
+                sudoku_param[i][j].set_f(f)
+                sudoku_param[i][j].set_index(i, j)
+                sudoku_param[i][j].set_guess(potential_guess)
+                open_queue.append(sudoku_param[i][j])
+
+    sorted(open_queue, key=operator.attrgetter('f'))
+
+    
+    
+    can_be_solved = True
+    for i in range(size):
+        for j in range(size):
+            if((sudoku_param[i][j].value != '?') and (conflict_exist(sudoku_param, i, j) == True)):
+                print 'The sudoku cannot be solved'
+                can_be_solved = False
+                return
+    if(can_be_solved == True):
+        sudoku_result = recur_solution(sudoku_param, open_queue, closed_list)
+        for i in range(size):
+            for j in range(size):
+                if j % size == size-1:
+                    print sudoku_result[i][j].value,
+                    print '\n'
+                else:
+                    print sudoku_result[i][j].value,
+   
+Astar_search(sudoku)
+
+            
+
+        
+                   
+    
+            
+
+
+            
+
+    
+
+
+
+
+
+
+
+
+
+
+    
+    
+    
