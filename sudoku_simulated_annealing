@@ -1,0 +1,161 @@
+import io
+import scipy
+from scipy import misc
+import math
+from math import exp
+import random
+from copy import deepcopy
+
+#Read txt file into program
+def getSudoku(file):
+    size_of_sudoku = 0
+    with io.open(file.format(file),'r', encoding='utf-8') as f: 
+          lines = f.readlines() 
+    sudoku_list = list()
+    for l in lines:
+        sudoku_list.append((l.strip().split(",")))
+        size_of_sudoku  += 1
+     
+    #Convert every element into string   
+    for i in range(size_of_sudoku):
+        for j in range(size_of_sudoku):    
+            sudoku_list[i][j] = str(sudoku_list[i][j])
+    return sudoku_list, size_of_sudoku
+   
+sudoku, size = getSudoku('C:/Users/Bo/Desktop/input_4.txt')  
+
+#Compute the conflicts in the sudoku_list
+def num_of_conflicts(sudoku_param):
+    conflicts_row =0
+    conflicts_column = 0
+    conflicts_square = 0
+    conflicts_total = 0
+    #count the conflicts of every row
+    for i in range(size):
+        for j in range(size):  
+            #Compute each number's duplication, use j to be 1-size
+            count = sudoku_param[i].count(str(j+1))
+            if(count>=2):
+                conflicts_row += int(scipy.misc.comb(count, 2))     
+                
+    #count the conflicts of every column
+    sudoku_column = list()
+    
+    
+    #Construct a list object by using the columns of sudoku
+    for i in range(size):
+        list_column = []
+        for j in range(size):           
+            list_column.append(sudoku_param[j][i])
+        sudoku_column.append(list_column)
+
+    for i in range(size):
+        for j in range(size):  
+            #Compute each number's duplication, use j to be 1-size
+            count = sudoku_column[i].count(str(j+1))
+            if(count>=2):
+                conflicts_column += int(scipy.misc.comb(count, 2))
+    
+    
+    #count the conflicts of every sub-square
+    #Firstly, put the squares in a list object
+    sudoku_square = list()
+    square_len = int(math.sqrt(size))
+    num_square = size
+    for num in range(0,num_square):
+        list_square = []
+        for i in range(square_len):
+            for j in range(square_len):
+                list_square.append(sudoku_param[(num/square_len*square_len)+i][(num%square_len*square_len)+j])
+        sudoku_square.append(list_square)
+    
+    #Compute the conflicts in squares that have already been put into sudoku_square
+    for i in range(size):
+        for j in range(size):  
+            #Compute each number's duplication, use j to be 1-size
+            count = sudoku_square[i].count(str(j+1))
+            if(count>=2):
+                conflicts_square += int(scipy.misc.comb(count, 2)) 
+                
+
+    conflicts_total = conflicts_column + conflicts_row + conflicts_square
+    return conflicts_total
+    
+#Design a random assignment for changing the '?' to random number 1-size
+def random_sudoku_assignment(problem):
+    random_sudoku_assignment = problem
+    for i in range(size):
+        for j in range(size): 
+            if(problem[i][j] == '?'):
+                random_sudoku_assignment[i][j] = str(random.randint(1,size))
+    print random_sudoku_assignment
+    return random_sudoku_assignment
+    
+
+   
+#Define a random assignment for the next random sudoku
+def next_sudoku_assignment(curr):
+    nex = list()
+    nex = deepcopy(curr)
+    
+    i = random.randint(0,size-1)
+    j = random.randint(0,size-1)
+    random_str = str(random.randint(1,size))
+    while(random_str == nex[i][j]):
+       random_str = str(random.randint(1,size))
+    nex[i][j] = random_str 
+    return nex
+    
+    
+#Use SA to solve the sudoku    
+def simulated_annealing(problem_after_random_sudoku_assignment):
+    current_sudoku = list()
+    current_sudoku = deepcopy(problem_after_random_sudoku_assignment)
+    next_sudoku = list()
+    t=0
+    while(True):
+        T = float(t)/10000+1
+        if(T==0):
+            print current_sudoku
+            return current_sudoku
+        next_sudoku = next_sudoku_assignment(current_sudoku)
+        delta_E = num_of_conflicts(current_sudoku) - num_of_conflicts(next_sudoku)
+        # print num_of_conflicts(next_sudoku)
+        # print num_of_conflicts(current_sudoku)
+        
+        if(num_of_conflicts(next_sudoku) == 0):
+            break;
+        if(delta_E >= 0):
+            current_sudoku = deepcopy(next_sudoku) 
+        else:
+            if(exp(delta_E/T) > random.random()):
+                current_sudoku = deepcopy(next_sudoku)
+        t+=1
+    return next_sudoku
+
+conflicts = num_of_conflicts(sudoku)	
+if(conflicts>0):
+	print 'There are ' + str(conflicts)  + ' conflicts in given sudoku'
+else:  
+	final_sudoku = simulated_annealing(random_sudoku_assignment(sudoku))            
+	for l in range(size):
+		print final_sudoku[l][:]
+
+
+
+
+
+    
+
+
+
+
+
+
+
+
+
+
+    
+    
+    
